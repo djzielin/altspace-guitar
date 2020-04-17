@@ -5,19 +5,23 @@
 
 import * as MRE from '../../mixed-reality-extension-sdk/packages/sdk/';
 import { Vector3 } from '../../mixed-reality-extension-sdk/packages/sdk/';
+import GuitarString from './guitarstring'
 
 /**
  * The main class of this app. All the logic goes here.
  */
+
 export default class HelloWorld {
 	private assets: MRE.AssetContainer;
 
-	private ourSounds: MRE.Sound[] = [];
+	private ourStrings: GuitarString[]=[];
+	
 	private ourKeys: MRE.Actor[] = [];
 	private prevKey: MRE.Actor=null;
-	private prevNote=0;
+	private noteSelected=0;
 
-	private activeSounds: Map<number,MRE.MediaInstance> = new Map();
+	private prevRightY=1.0;
+
 	private sphereMesh: MRE.Mesh; //for hand
 	private sphereMat: MRE.Material;
 	private noteColor: MRE.Material;
@@ -61,7 +65,6 @@ export default class HelloWorld {
 		this.dotMat = this.assets.createMaterial('cubemat', {
 			color: new MRE.Color4(0, 0, 0)
 		});
-
 
 		this.context.onStarted(() => this.started());
 		this.context.onUserLeft(user => this.userLeft(user));
@@ -170,41 +173,29 @@ export default class HelloWorld {
 	private findClosestHand(handName: string, handMap: Map<string, MRE.Actor>) {
 		let closestDist = Infinity;
 		let closestActor: MRE.Actor = null;
-		let closestIndex = -1;
-		let index = 0;
-		let allDists: Map<number, MRE.Actor>;
+		//let closestIndex = -1;
+		//let index = 0;
+		//let allDists: Map<number, MRE.Actor>;
 
-		MRE.log.info("app", "Trying to find closest " + handName);
-		for (let hand of handMap.values()) {
+		//MRE.log.info("app", "Trying to find closest " + handName);
+		for (const hand of handMap.values()) {
 			const hDist = this.computeFlatDistance(hand.transform.app.position, new Vector3(0,0,0));
-			MRE.log.info("app","  user: " + index + 
-								" pos: " + this.Vector2String(hand.transform.app.position,3) +
-								" dist: " + hDist.toFixed(3));
+			//MRE.log.info("app","  user: " + index + 
+			//					" pos: " + this.Vector2String(hand.transform.app.position,3) +
+			//					" dist: " + hDist.toFixed(3));
 			if (hDist < closestDist) {
 				closestDist = hDist;
 				closestActor = hand;
-				closestIndex = index;
+				//closestIndex = index;
 			}
-			index++;
+			//index++;
 		}
-		MRE.log.info("app", "  closest hand is user: " + closestIndex);
+		//MRE.log.info("app", "  closest hand is user: " + closestIndex);
 
 		return closestActor;
 	}
-
-	private loadSound(filename: string) {
-		MRE.log.info("app", "trying to load filename: " + filename);
-		const newSound = this.assets.createSound("dave long sound", {
-			uri: filename
-		});
-		if (newSound) {
-			MRE.log.info("app", "   succesfully loaded sound!");
-		}
-		this.ourSounds.push(newSound);
-	}
-
-	private createDot(ourPos: Vector3, ourScale: Vector3)
-	{
+	
+	private createDot(ourPos: Vector3, ourScale: Vector3) {
 		MRE.Actor.Create(this.context, { //front dots
 			actor: {
 				name: 'dot',
@@ -224,10 +215,9 @@ export default class HelloWorld {
 		});
 	}
 
-	private calcNote(xPos: number){
-		let root=12 * 0.045;	
+	private calcNote(xPos: number) {
 		for(let i=1;i<13;i++){	//note 0 is invisible	
-			let xAdj=xPos-(12-i)*0.045;			
+			const xAdj=xPos-(12-i)*0.045;			
 			if(xAdj<(0.045/2.0) && xAdj>(-0.045/2.0)){
 				return i;
 			}
@@ -238,18 +228,18 @@ export default class HelloWorld {
 	private started() {
 		MRE.log.info("app", "started callback has begun");
 
-		const boxMesh = this.assets.createBoxMesh('box', 0.04, 0.1, 0.02);		
-		const fretMesh: MRE.Mesh = this.assets.createBoxMesh('box', 0.005, 0.1, 0.02);
-	
+		this.ourStrings.push(new GuitarString("Chord",this.context,this.assets,this.baseUrl));
+		//this.ourStrings.push(new GuitarString("E",this.context,this.assets,this.baseUrl));
+		//this.ourStrings.push(new GuitarString("A",this.context,this.assets,this.baseUrl));
+		//this.ourStrings.push(new GuitarString("D",this.context,this.assets,this.baseUrl));
+
+		const boxMesh = this.assets.createBoxMesh('box', 1, 1, 1);
+
 		const fretMat: MRE.Material = this.assets.createMaterial('cubemat', {
 			color: new MRE.Color4(211.0 / 255.0, 211.0 / 255.0, 211.0 / 255.0)
 		});
 
 		for (let i = 0; i < 13; i++) {
-
-			const filename = `${this.baseUrl}/` + "Guitar_E_" + i + ".wav";
-			this.loadSound(filename);
-
 			const keyPos = new MRE.Vector3(12 * 0.045 - i * 0.045, 0, 0);
 
 			let showNote = true;
@@ -260,7 +250,10 @@ export default class HelloWorld {
 				actor: {
 					name: 'box' + i,
 					transform: {
-						local: { position: new MRE.Vector3(0, 0, 0) },
+						local: {
+							position: new MRE.Vector3(0, 0, 0),
+							scale: new Vector3(0.04, 0.1, 0.02)
+						},
 						app: { position: keyPos }
 					},
 					appearance:
@@ -279,13 +272,13 @@ export default class HelloWorld {
 					transform: {
 						local: {
 							position: new MRE.Vector3(0, 0, 0),
-							scale: new Vector3(1, 1, 1)
+							scale: new Vector3(0.005, 0.1, 0.02)
 						},
 						app: { position: keyPos.add(new Vector3(-0.045 / 2.0, 0, 0)) }
 					},
 					appearance:
 					{
-						meshId: fretMesh.id,
+						meshId: boxMesh.id,
 						materialId: fretMat.id
 					},
 				}
@@ -293,65 +286,98 @@ export default class HelloWorld {
 
 			if (i === 3 || i === 5 || i === 7 || i === 9) { 	//dots on fretboard
 				this.createDot(keyPos.add(new Vector3(0, 0, -0.01)), new Vector3(0.005, 0.005, 0.001));
-				this.createDot(keyPos.add(new Vector3(0, 0.05, 0.0)), new Vector3(0.005, 0.001, 0.005));	
+				this.createDot(keyPos.add(new Vector3(0, 0.05, 0.0)), new Vector3(0.005, 0.001, 0.005));
 			}
 			if (i === 12) { 	//double dots on fretboard
-				
 				this.createDot(keyPos.add(new Vector3(0.0, 0.01, -0.01)), new Vector3(0.005, 0.005, 0.001));
 				this.createDot(keyPos.add(new Vector3(0.0, -0.01, -0.01)), new Vector3(0.005, 0.005, 0.001));
-				
-				this.createDot(keyPos.add(new Vector3(0.01, 0.05, 0.0)), new Vector3(0.005, 0.001, 0.005));	
-				this.createDot(keyPos.add(new Vector3(-0.01, 0.05, 0.0)), new Vector3(0.005, 0.001, 0.005));			
+
+				this.createDot(keyPos.add(new Vector3(0.01, 0.05, 0.0)), new Vector3(0.005, 0.001, 0.005));
+				this.createDot(keyPos.add(new Vector3(-0.01, 0.05, 0.0)), new Vector3(0.005, 0.001, 0.005));
 			}
 		}
-		
 
-	
+		for (let e = 1; e < 2; e++) {
+			const stringActor=MRE.Actor.Create(this.context, { //create string
+				actor: {
+					name: 'string' + e,
+					transform: {
+						local: {
+							position: new MRE.Vector3(0, 0, 0),
+							scale: new Vector3(0.3, 0.01, 0.01)
+						},
+						app: { position: new Vector3(-0.2, -0.05 + 0.05 * e, 0) }
+					},
+					appearance:
+					{
+						meshId: boxMesh.id,
+						materialId: fretMat.id
+					},
+				}
+			});
+			//this.ourStrings[e].ourActor=stringActor; //for multiple strings
+			this.ourStrings[0].ourActor=stringActor;
+		}
+
 		setInterval(() => {
-			//if (this.ourRightHand) {
-			//	this.rightSoundHand.updateSound(this.ourRightHand.transform.app.position);
-			//}
-			if (this.ourLeftHand) {
-				const leftPos: Vector3=this.ourLeftHand.transform.app.position;
-				//0.04, 0.1, 0.02);	
+			for(const gs of this.ourStrings){
+				gs.pauseIfNeeded();
+			}
 
-				let note=0;
-				if(leftPos.y<(0.05+0.02) && leftPos.y>-(0.05+0.02)){
-					if(leftPos.z<(0.01+0.02) && leftPos.z>-(0.01+0.02)){
-						note=this.calcNote(leftPos.x);
+			if (this.ourLeftHand) {
+				const leftPos: Vector3 = this.ourLeftHand.transform.app.position;
+
+				let note = 0;
+				if (leftPos.y < (0.05 + 0.02) && leftPos.y > -(0.05 + 0.02)) {
+					if (leftPos.z < (0.01 + 0.02) && leftPos.z > -(0.01 + 0.02)) {
+						note = this.calcNote(leftPos.x);
 					}
 				}
 
-				if(note!==this.prevNote){ //change occured
-					MRE.log.info("app","user now touching note: " + note);
+				if (note !== this.noteSelected) { //change occured
+					MRE.log.info("app","user now touching note: " + note);					
 
-					if (this.activeSounds.has(this.prevNote)) { //stop previously playing note
-						const playingSoud: MRE.MediaInstance = this.activeSounds.get(this.prevNote);
-						playingSoud.stop();
-						this.activeSounds.delete(this.prevNote);
-					}				
-
-					const soundInstance: MRE.MediaInstance =
-					this.ourKeys[note].startSound(this.ourSounds[note].id, {
-						doppler: 0,
-						pitch: 0.0,
-						looping: false,
-						volume: 1.0
-					});
-					this.activeSounds.set(note, soundInstance);
-
-
-					if(this.prevKey)
-					{
-						this.prevKey.appearance.materialId=this.noteColor.id;
+					if (this.prevKey) {
+						this.prevKey.appearance.materialId = this.noteColor.id;
 					}
 
-					this.ourKeys[note].appearance.materialId=this.noteTouchedColor.id;
+					this.ourKeys[note].appearance.materialId = this.noteTouchedColor.id;
 
-					this.prevKey=this.ourKeys[note];
-					this.prevNote=note;
+					this.prevKey = this.ourKeys[note];
+					this.noteSelected = note;
 				}
 			}
+
+			if (this.ourRightHand) {
+				const rightPos: Vector3 = this.ourRightHand.transform.app.position;
+
+				if (rightPos.x < (-0.2 + (0.15 + 0.02)) && rightPos.x > (-0.2 - (0.15 + 0.02))) {
+					if (rightPos.z < 0.04 && rightPos.z > (-0.04)) {
+						/*for (let i = 0; i < 3; i++) {
+							const stringPos = 0.05 - 0.05 * i;
+
+							if (this.prevRightY > stringPos && rightPos.y < stringPos) {
+								MRE.log.info("app", "downstroke string " + i + " note: " + this.noteSelected);
+								this.ourStrings[i].playString(this.noteSelected);
+							}
+							if (rightPos.y > stringPos && this.prevRightY < stringPos) {
+								MRE.log.info("app", "upstroke string " + i + " note: " + this.noteSelected);
+								this.ourStrings[i].playString(this.noteSelected);
+							}
+						}*/
+						if (this.prevRightY > 0 && rightPos.y < 0) { //single string
+							MRE.log.info("app", "downstroke string 0" + " note: " + this.noteSelected);
+							this.ourStrings[0].playString(this.noteSelected);
+						}
+						if (rightPos.y > 0 && this.prevRightY < 0) {
+							MRE.log.info("app", "upstroke string 0" + " note: " + this.noteSelected);
+							this.ourStrings[0].playString(this.noteSelected);
+						}
+					}
+					this.prevRightY = rightPos.y;
+				}
+			}
+
 		}, 30); //fire every 30ms
 		
 
@@ -361,4 +387,6 @@ export default class HelloWorld {
 			this.ourLeftHand = this.findClosestHand("lefthand",this.allLeftHands);
 		}, 1000); //fire every 1 sec
 	}
+
+	
 }
