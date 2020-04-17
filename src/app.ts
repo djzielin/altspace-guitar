@@ -34,6 +34,11 @@ export default class HelloWorld {
 	private allLeftHands = new Map();
 	private ourLeftHand: MRE.Actor = null;
 
+	private prevHandPos: Vector3=new Vector3(0,0,0);
+	private prevTime=0
+	private accumulatedTimes=0;
+	private accumulatedCounts=0;
+
 	private clampVal(incoming: number): number {
 		if (incoming < 0) {
 			return 0;
@@ -353,18 +358,18 @@ export default class HelloWorld {
 
 				if (rightPos.x < (-0.2 + (0.15 + 0.02)) && rightPos.x > (-0.2 - (0.15 + 0.02))) {
 					if (rightPos.z < 0.04 && rightPos.z > (-0.04)) {
-						/*for (let i = 0; i < 3; i++) {
-							const stringPos = 0.05 - 0.05 * i;
-
-							if (this.prevRightY > stringPos && rightPos.y < stringPos) {
-								MRE.log.info("app", "downstroke string " + i + " note: " + this.noteSelected);
-								this.ourStrings[i].playString(this.noteSelected);
-							}
-							if (rightPos.y > stringPos && this.prevRightY < stringPos) {
-								MRE.log.info("app", "upstroke string " + i + " note: " + this.noteSelected);
-								this.ourStrings[i].playString(this.noteSelected);
-							}
-						}*/
+						//for (let i = 0; i < 3; i++) { //for 3 string mode
+						//	const stringPos = 0.05 - 0.05 * i;
+						//
+						//	if (this.prevRightY > stringPos && rightPos.y < stringPos) {
+						//		MRE.log.info("app", "downstroke string " + i + " note: " + this.noteSelected);
+						//		this.ourStrings[i].playString(this.noteSelected);
+						//	}
+						//	if (rightPos.y > stringPos && this.prevRightY < stringPos) {
+						//		MRE.log.info("app", "upstroke string " + i + " note: " + this.noteSelected);
+						//		this.ourStrings[i].playString(this.noteSelected);
+						//	}
+						//}
 						if (this.prevRightY > 0 && rightPos.y < 0) { //single string
 							MRE.log.info("app", "downstroke string 0" + " note: " + this.noteSelected);
 							this.ourStrings[0].playString(this.noteSelected);
@@ -380,6 +385,34 @@ export default class HelloWorld {
 
 		}, 30); //fire every 30ms
 		
+		//analysis of hand update rate
+		/*setInterval(() => {
+			if (this.ourRightHand) {
+				//MRE.log.info("app","-------------------------");
+				//MRE.log.info("app","prev: " + this.prevHandPos);
+				const rPos: Vector3 = this.ourRightHand.transform.app.position;
+				const rDiff: number = Math.abs(rPos.x - this.prevHandPos.x) +
+					Math.abs(rPos.y - this.prevHandPos.y) +
+					Math.abs(rPos.z - this.prevHandPos.z);
+
+				if (rDiff > 0.000001) {
+					const currentTime = Date.now();
+					const elapsedTime = currentTime - this.prevTime;
+					MRE.log.info("app", "got a new update: " + elapsedTime + " at time: " + currentTime);
+					this.prevTime = currentTime;
+					this.prevHandPos = rPos.clone();
+
+					this.accumulatedTimes += elapsedTime;
+					this.accumulatedCounts++;
+					if (this.accumulatedCounts === 30) {
+						MRE.log.info("app", "Average: " + this.accumulatedTimes / this.accumulatedCounts);
+						this.accumulatedCounts = 0;
+						this.accumulatedTimes = 0;
+					}
+				} 
+			}
+		}, 5); //fire every 200 times a second */
+
 
 		//keep checking who has the closest hand to guitar. put that hand in charge
 		setInterval(() => {
