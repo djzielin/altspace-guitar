@@ -14,6 +14,9 @@ export default class HelloWorld {
 
 	private ourSounds: MRE.Sound[] = [];
 	private ourKeys: MRE.Actor[] = [];
+	private prevKey: MRE.Actor=null;
+	private prevNote=0;
+
 	private activeSounds: Map<number,MRE.MediaInstance> = new Map();
 	private sphereMesh: MRE.Mesh; //for hand
 	private sphereMat: MRE.Material;
@@ -200,24 +203,6 @@ export default class HelloWorld {
 		this.ourSounds.push(newSound);
 	}
 
-		//if we want to play audio originating in altspace
-				/*if (vel > 0) {
-					const soundInstance: MRE.MediaInstance =
-						this.ourKeys[adjustedNote].startSound(this.ourSounds[adjustedNote].id, {
-							doppler: 0,
-							pitch: 0.0,
-							looping: false,
-							volume: 1.0
-						});
-					this.activeSounds.set(note, soundInstance);
-				} else {
-					if (this.activeSounds.has(note)) {
-						const playingSoud: MRE.MediaInstance = this.activeSounds.get(note);
-						playingSoud.stop();
-						this.activeSounds.delete(note);
-					}
-				}*/
-
 	private createDot(ourPos: Vector3, ourScale: Vector3)
 	{
 		MRE.Actor.Create(this.context, { //front dots
@@ -237,6 +222,17 @@ export default class HelloWorld {
 				},
 			}
 		});
+	}
+
+	private calcNote(xPos: number){
+		let root=12 * 0.045;	
+		for(let i=1;i<13;i++){	//note 0 is invisible	
+			let xAdj=xPos-(12-i)*0.045;			
+			if(xAdj<(0.045/2.0) && xAdj>(-0.045/2.0)){
+				return i;
+			}
+		}
+		return 0;
 	}
 
 	private started() {
@@ -308,14 +304,54 @@ export default class HelloWorld {
 				this.createDot(keyPos.add(new Vector3(-0.01, 0.05, 0.0)), new Vector3(0.005, 0.001, 0.005));			
 			}
 		}
+		
+
 	
 		setInterval(() => {
-			/*if (this.ourRightHand) {
-				this.rightSoundHand.updateSound(this.ourRightHand.transform.app.position);
-			}
+			//if (this.ourRightHand) {
+			//	this.rightSoundHand.updateSound(this.ourRightHand.transform.app.position);
+			//}
 			if (this.ourLeftHand) {
-				this.leftSoundHand.updateSound(this.ourLeftHand.transform.app.position);
-			}*/
+				const leftPos: Vector3=this.ourLeftHand.transform.app.position;
+				//0.04, 0.1, 0.02);	
+
+				let note=0;
+				if(leftPos.y<(0.05+0.02) && leftPos.y>-(0.05+0.02)){
+					if(leftPos.z<(0.01+0.02) && leftPos.z>-(0.01+0.02)){
+						note=this.calcNote(leftPos.x);
+					}
+				}
+
+				if(note!==this.prevNote){ //change occured
+					MRE.log.info("app","user now touching note: " + note);
+
+					if (this.activeSounds.has(this.prevNote)) { //stop previously playing note
+						const playingSoud: MRE.MediaInstance = this.activeSounds.get(this.prevNote);
+						playingSoud.stop();
+						this.activeSounds.delete(this.prevNote);
+					}				
+
+					const soundInstance: MRE.MediaInstance =
+					this.ourKeys[note].startSound(this.ourSounds[note].id, {
+						doppler: 0,
+						pitch: 0.0,
+						looping: false,
+						volume: 1.0
+					});
+					this.activeSounds.set(note, soundInstance);
+
+
+					if(this.prevKey)
+					{
+						this.prevKey.appearance.materialId=this.noteColor.id;
+					}
+
+					this.ourKeys[note].appearance.materialId=this.noteTouchedColor.id;
+
+					this.prevKey=this.ourKeys[note];
+					this.prevNote=note;
+				}
+			}
 		}, 30); //fire every 30ms
 		
 
