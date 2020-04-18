@@ -20,13 +20,16 @@ export default class HelloWorld {
 	private prevKey: MRE.Actor=null;
 	private noteSelected=0;
 
-	private prevRightY=1.0;
+	//private prevRightY=1.0;
 
-	private sphereMesh: MRE.Mesh; //for hand
+	private sphereMesh: MRE.Mesh; 
+	private boxMesh: MRE.Mesh;
+
 	private sphereMat: MRE.Material;
-	private noteColor: MRE.Material;
-	private noteTouchedColor: MRE.Material;
+	private noteMat: MRE.Material;
+	private noteTouchedMat: MRE.Material;
 	private dotMat: MRE.Material;
+	private fretMat: MRE.Material;
 
 	private allRightHands = new Map();
 	private ourRightHand: MRE.Actor = null;
@@ -34,10 +37,10 @@ export default class HelloWorld {
 	private allLeftHands = new Map();
 	private ourLeftHand: MRE.Actor = null;
 
-	private prevHandPos: Vector3=new Vector3(0,0,0);
-	private prevTime=0
-	private accumulatedTimes=0;
-	private accumulatedCounts=0;
+	//private prevHandPos: Vector3=new Vector3(0,0,0);
+	//private prevTime=0
+	//private accumulatedTimes=0;
+	//private accumulatedCounts=0;
 
 	private clampVal(incoming: number): number {
 		if (incoming < 0) {
@@ -54,14 +57,16 @@ export default class HelloWorld {
 		this.assets = new MRE.AssetContainer(context);
 
 		this.sphereMesh = this.assets.createSphereMesh('sphere', 1.0, 8);
+		this.boxMesh = this.assets.createBoxMesh('box', 1, 1, 1);
+
 		this.sphereMat = this.assets.createMaterial('spheremat', {
 			color: new MRE.Color4(0, 0, 1)
 		});
 
-		this.noteColor = this.assets.createMaterial('cubemat', {
+		this.noteMat = this.assets.createMaterial('cubemat', {
 			color: new MRE.Color4(139.0 / 255.0, 69.0 / 255.0, 19.0 / 255.0)
 		});
-		this.noteTouchedColor = this.assets.createMaterial('cubemat', {
+		this.noteTouchedMat = this.assets.createMaterial('cubemat', {
 			color: new MRE.Color4(this.clampVal(139.0 / 255.0 * 1.5),
 				this.clampVal(69.0 / 255.0 * 1.5),
 				this.clampVal(19.0 / 255.0 * 1.5))
@@ -69,6 +74,10 @@ export default class HelloWorld {
 
 		this.dotMat = this.assets.createMaterial('cubemat', {
 			color: new MRE.Color4(0, 0, 0)
+		});
+
+		this.fretMat = this.assets.createMaterial('cubemat', {
+			color: new MRE.Color4(211.0 / 255.0, 211.0 / 255.0, 211.0 / 255.0)
 		});
 
 		this.context.onStarted(() => this.started());
@@ -84,8 +93,8 @@ export default class HelloWorld {
 				name: "rHand" + user.id,
 				transform: {
 					local: {
-						position: new MRE.Vector3(0, 0.0, 0.1),
-						scale: new Vector3(0.02, 0.02, 0.02)
+						position: new MRE.Vector3(-0.06, -0.04, 0.11),
+						scale: new Vector3(0.01, 0.04, 0.02)
 					}
 				},
 				attachment: {
@@ -94,7 +103,7 @@ export default class HelloWorld {
 				},
 				appearance:
 				{
-					meshId: this.sphereMesh.id,
+					meshId: this.boxMesh.id,
 					materialId: this.sphereMat.id
 				}
 			}
@@ -102,6 +111,12 @@ export default class HelloWorld {
 		if (rHand) {
 			MRE.log.info("app", "   added their right hand");
 			rHand.subscribe('transform');
+			rHand.setCollider(MRE.ColliderType.Auto,false);
+			rHand.enableRigidBody({
+				enabled: true,
+				isKinematic: true,
+				useGravity: false
+			});
 			this.allRightHands.set(user.id, rHand);
 		} else {
 			MRE.log.info("app", "   ERROR during hand creation!!");
@@ -238,12 +253,6 @@ export default class HelloWorld {
 		//this.ourStrings.push(new GuitarString("A",this.context,this.assets,this.baseUrl));
 		//this.ourStrings.push(new GuitarString("D",this.context,this.assets,this.baseUrl));
 
-		const boxMesh = this.assets.createBoxMesh('box', 1, 1, 1);
-
-		const fretMat: MRE.Material = this.assets.createMaterial('cubemat', {
-			color: new MRE.Color4(211.0 / 255.0, 211.0 / 255.0, 211.0 / 255.0)
-		});
-
 		for (let i = 0; i < 13; i++) {
 			const keyPos = new MRE.Vector3(12 * 0.045 - i * 0.045, 0, 0);
 
@@ -263,8 +272,8 @@ export default class HelloWorld {
 					},
 					appearance:
 					{
-						meshId: boxMesh.id,
-						materialId: this.noteColor.id,
+						meshId: this.boxMesh.id,
+						materialId: this.noteMat.id,
 						enabled: showNote
 					},
 				}
@@ -283,8 +292,8 @@ export default class HelloWorld {
 					},
 					appearance:
 					{
-						meshId: boxMesh.id,
-						materialId: fretMat.id
+						meshId: this.boxMesh.id,
+						materialId: this.fretMat.id
 					},
 				}
 			});
@@ -315,11 +324,21 @@ export default class HelloWorld {
 					},
 					appearance:
 					{
-						meshId: boxMesh.id,
-						materialId: fretMat.id
+						meshId: this.boxMesh.id,
+						materialId: this.fretMat.id
 					},
 				}
 			});
+			stringActor.setCollider(MRE.ColliderType.Auto,false);
+			stringActor.collider.isTrigger=true;
+			stringActor.collider.onTrigger("trigger-enter", (otherActor: MRE.Actor) => {
+				MRE.log.info("app", "trigger enter occured");
+				this.ourStrings[0].playString(this.noteSelected);
+			});
+			stringActor.collider.onTrigger("trigger-exit", (otherActor: MRE.Actor) => {
+				MRE.log.info("app", "trigger exit occured");
+			});
+
 			//this.ourStrings[e].ourActor=stringActor; //for multiple strings
 			this.ourStrings[0].ourActor=stringActor;
 		}
@@ -343,16 +362,16 @@ export default class HelloWorld {
 					MRE.log.info("app","user now touching note: " + note);					
 
 					if (this.prevKey) {
-						this.prevKey.appearance.materialId = this.noteColor.id;
+						this.prevKey.appearance.materialId = this.noteMat.id;
 					}
 
-					this.ourKeys[note].appearance.materialId = this.noteTouchedColor.id;
+					this.ourKeys[note].appearance.materialId = this.noteTouchedMat.id;
 
 					this.prevKey = this.ourKeys[note];
 					this.noteSelected = note;
 				}
 			}
-
+/*
 			if (this.ourRightHand) {
 				const rightPos: Vector3 = this.ourRightHand.transform.app.position;
 
@@ -381,7 +400,7 @@ export default class HelloWorld {
 					}
 					this.prevRightY = rightPos.y;
 				}
-			}
+			}*/
 
 		}, 30); //fire every 30ms
 		
