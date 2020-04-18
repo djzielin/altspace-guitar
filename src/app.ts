@@ -19,6 +19,8 @@ export default class HelloWorld {
 	private ourKeys: MRE.Actor[] = [];
 	private prevKey: MRE.Actor=null;
 	private noteSelected=0;
+	private notesTouched: Map<number,number>=new Map();
+
 
 	//private prevRightY=1.0;
 
@@ -94,7 +96,7 @@ export default class HelloWorld {
 				transform: {
 					local: {
 						position: new MRE.Vector3(-0.06, -0.04, 0.11),
-						scale: new Vector3(0.01, 0.04, 0.02)
+						scale: new Vector3(0.005, 0.05, 0.02)
 					}
 				},
 				attachment: {
@@ -128,8 +130,8 @@ export default class HelloWorld {
 				name: "lHand" + user.id,
 				transform: {
 					local: {
-						position: new MRE.Vector3(0, 0.0, 0.1),
-						scale: new Vector3(0.02, 0.02, 0.02)
+						position: new MRE.Vector3(0.035, -0.025, 0.16), // left, away from palm, 
+						scale: new Vector3(0.02, 0.005, 0.04)
 					}
 				},
 				attachment: {
@@ -138,7 +140,7 @@ export default class HelloWorld {
 				},
 				appearance:
 				{
-					meshId: this.sphereMesh.id,
+					meshId: this.boxMesh.id,
 					materialId: this.sphereMat.id
 				}
 			}
@@ -147,6 +149,12 @@ export default class HelloWorld {
 		if (lHand) {
 			MRE.log.info("app", "   added their left hand");
 			lHand.subscribe('transform');
+			lHand.setCollider(MRE.ColliderType.Auto,false);
+			lHand.enableRigidBody({
+				enabled: true,
+				isKinematic: true,
+				useGravity: false
+			});
 			this.allLeftHands.set(user.id, lHand);
 		} else {
 			MRE.log.info("app", "   ERROR during hand creation!!");
@@ -245,6 +253,34 @@ export default class HelloWorld {
 		return 0;
 	}
 
+	private selectNote()
+	{
+		let newNote=0;
+		let minTime=0;
+
+		if(this.notesTouched.size>0){
+			for(const [k,v] of this.notesTouched.entries()){ //find the most recent touch
+				if(v>minTime){
+					minTime=v;
+					newNote=k;
+				}
+			}
+		}
+
+		if (newNote !== this.noteSelected) { //change occured
+			MRE.log.info("app","user now touching note: " + newNote);					
+
+			if (this.prevKey) {
+				this.prevKey.appearance.materialId = this.noteMat.id;
+			}
+
+			this.ourKeys[newNote].appearance.materialId = this.noteTouchedMat.id;
+
+			this.prevKey = this.ourKeys[newNote];
+			this.noteSelected = newNote;
+		}
+	}
+
 	private started() {
 		MRE.log.info("app", "started callback has begun");
 
@@ -278,6 +314,23 @@ export default class HelloWorld {
 					},
 				}
 			});
+
+			if (i !== 0) {
+				keyActor.setCollider(MRE.ColliderType.Auto, false);
+				keyActor.collider.isTrigger = true;
+				keyActor.collider.onTrigger("trigger-enter", (otherActor: MRE.Actor) => {
+					MRE.log.info("app", "note enter occured for " + i);
+					this.notesTouched.set(i,Date.now());
+					this.selectNote();
+				});
+				keyActor.collider.onTrigger("trigger-exit", (otherActor: MRE.Actor) => {
+					MRE.log.info("app", "note exit occured for " + i);
+					this.notesTouched.delete(i);
+					this.selectNote();
+					
+				});
+			}
+
 			this.ourKeys.push(keyActor);
 
 			MRE.Actor.Create(this.context, { //create Fret
@@ -332,77 +385,14 @@ export default class HelloWorld {
 			stringActor.setCollider(MRE.ColliderType.Auto,false);
 			stringActor.collider.isTrigger=true;
 			stringActor.collider.onTrigger("trigger-enter", (otherActor: MRE.Actor) => {
-				MRE.log.info("app", "trigger enter occured");
+				MRE.log.info("app", "pick trigger enter occured");
 				this.ourStrings[0].playString(this.noteSelected);
 			});
-			stringActor.collider.onTrigger("trigger-exit", (otherActor: MRE.Actor) => {
-				MRE.log.info("app", "trigger exit occured");
-			});
+			
 
 			//this.ourStrings[e].ourActor=stringActor; //for multiple strings
 			this.ourStrings[0].ourActor=stringActor;
-		}
-
-		setInterval(() => {
-			for(const gs of this.ourStrings){
-				gs.pauseIfNeeded();
-			}
-
-			if (this.ourLeftHand) {
-				const leftPos: Vector3 = this.ourLeftHand.transform.app.position;
-
-				let note = 0;
-				if (leftPos.y < (0.05 + 0.02) && leftPos.y > -(0.05 + 0.02)) {
-					if (leftPos.z < (0.01 + 0.02) && leftPos.z > -(0.01 + 0.02)) {
-						note = this.calcNote(leftPos.x);
-					}
-				}
-
-				if (note !== this.noteSelected) { //change occured
-					MRE.log.info("app","user now touching note: " + note);					
-
-					if (this.prevKey) {
-						this.prevKey.appearance.materialId = this.noteMat.id;
-					}
-
-					this.ourKeys[note].appearance.materialId = this.noteTouchedMat.id;
-
-					this.prevKey = this.ourKeys[note];
-					this.noteSelected = note;
-				}
-			}
-/*
-			if (this.ourRightHand) {
-				const rightPos: Vector3 = this.ourRightHand.transform.app.position;
-
-				if (rightPos.x < (-0.2 + (0.15 + 0.02)) && rightPos.x > (-0.2 - (0.15 + 0.02))) {
-					if (rightPos.z < 0.04 && rightPos.z > (-0.04)) {
-						//for (let i = 0; i < 3; i++) { //for 3 string mode
-						//	const stringPos = 0.05 - 0.05 * i;
-						//
-						//	if (this.prevRightY > stringPos && rightPos.y < stringPos) {
-						//		MRE.log.info("app", "downstroke string " + i + " note: " + this.noteSelected);
-						//		this.ourStrings[i].playString(this.noteSelected);
-						//	}
-						//	if (rightPos.y > stringPos && this.prevRightY < stringPos) {
-						//		MRE.log.info("app", "upstroke string " + i + " note: " + this.noteSelected);
-						//		this.ourStrings[i].playString(this.noteSelected);
-						//	}
-						//}
-						if (this.prevRightY > 0 && rightPos.y < 0) { //single string
-							MRE.log.info("app", "downstroke string 0" + " note: " + this.noteSelected);
-							this.ourStrings[0].playString(this.noteSelected);
-						}
-						if (rightPos.y > 0 && this.prevRightY < 0) {
-							MRE.log.info("app", "upstroke string 0" + " note: " + this.noteSelected);
-							this.ourStrings[0].playString(this.noteSelected);
-						}
-					}
-					this.prevRightY = rightPos.y;
-				}
-			}*/
-
-		}, 30); //fire every 30ms
+		}	
 		
 		//analysis of hand update rate
 		/*setInterval(() => {
